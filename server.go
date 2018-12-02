@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -11,9 +14,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", handler)
-	err := http.ListenAndServeTLS(":443", "server.crt", "server.key", nil)
+	err := godotenv.Load()
 	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	certPath := os.Getenv("CERT_PATH")
+	certKeyPath := os.Getenv("CERT_KEY_PATH")
+
+	http.HandleFunc("/", handler)
+
+	error := http.ListenAndServeTLS(":443", certPath, certKeyPath, nil)
+	if error != nil {
 		log.Fatal(http.ListenAndServe(":8080", nil))
 	}
 }
