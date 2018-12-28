@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +27,13 @@ type messaging struct {
 
 type message struct {
 	Message string `json:"message"`
+}
+
+type PrivacyData struct {
+	Domain   string
+	Business string
+	City     string
+	Country  string
 }
 
 func hello(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -71,6 +79,23 @@ func apiHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 }
 
+func privacyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+	privacyData := PrivacyData{
+		os.Getenv("DOMAIN"),
+		os.Getenv("BUSINESS"),
+		os.Getenv("CITY"),
+		os.Getenv("COUNTRY"),
+	}
+
+	renderTemplate(w, "template/privacy_policy", privacyData)
+}
+
+func renderTemplate(w http.ResponseWriter, tmpl string, data PrivacyData) {
+	t, _ := template.ParseFiles(tmpl + ".html")
+	t.Execute(w, data)
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -82,6 +107,7 @@ func main() {
 
 	router := httprouter.New()
 	router.GET("/", hello)
+	router.GET("/privacy", privacyHandler)
 	router.GET("/webhook", verifyHook)
 	router.POST("/webhook", apiHook)
 
