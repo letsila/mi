@@ -72,7 +72,12 @@ func apiHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func main() {
-	err := godotenv.Load()
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = godotenv.Load(pwd + "/.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
