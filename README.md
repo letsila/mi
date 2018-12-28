@@ -1,5 +1,5 @@
-## Mimi AI
-Mimi AI is an utility messenger bot which will help you grab some stuff from the web.
+## Mi AI
+Mi AI is an utility messenger bot which will help you grab some stuff from the web.
 
 ## Deployment on Debian based distros
 1. Clone the repository on your server
@@ -22,16 +22,16 @@ Mimi AI is an utility messenger bot which will help you grab some stuff from the
         $ sudo apt-get install supervisor
         ```
 
-    * Create the following configuration file `/etc/supservisor/conf.d/mimi-ai.conf` with the following content
+    * Create the following configuration file `/etc/supservisor/conf.d/mi-ai.conf` with the following content
     
         ```
-        [program:mimi_ai]
-        directory=/home/<user-name>/go/src/mimi-ai
-        command=/home/<user-name>/go/src/mimi-ai/server
+        [program:mi_ai]
+        directory=/home/<user-name>/go/src/mi-ai
+        command=/home/<user-name>/go/src/mi-ai/server
         autostart=true
         autorestart=true
-        stderr_logfile=/var/log/mimi-ai.err.log
-        stdout_logfile=/var/log/mimi-ai.out.log
+        stderr_logfile=/var/log/mi-ai.err.log
+        stdout_logfile=/var/log/mi-ai.out.log
         ```
     
     * Run the following commands

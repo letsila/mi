@@ -37,7 +37,7 @@ type PrivacyData struct {
 }
 
 func hello(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "Greetings from mimi ai %s!", r.URL.Path[1:])
+	fmt.Fprintf(w, "Greetings from mi AI %s!", r.URL.Path[1:])
 }
 
 func verifyHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
