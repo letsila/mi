@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -12,8 +14,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/omidnikta/logrus"
 )
-
-// {"object": "page", "entry": [{"messaging": [{"message": "TEST_MESSAGE"}]}]}
 
 // BodyMsg message messenger
 type BodyMsg struct {
@@ -28,15 +28,19 @@ type messaging struct {
 }
 
 type messagingEl struct {
-	Message   message   `json:"message"`
-	Recipient recipient `json:"recipient"`
-	Sender    sender    `json:"sender"`
-	Timestamp int       `json:"timestamp"`
+	Message, PostBack *message  `json:"message"`
+	Recipient         recipient `json:"recipient"`
+	Sender            sender    `json:"sender"`
+	Timestamp         int       `json:"timestamp"`
 }
 
 type message struct {
 	Mid  string `json:"mid"`
 	Seq  int    `json:"seq"`
+	Text string `json:"text"`
+}
+
+type serverMessage struct {
 	Text string `json:"text"`
 }
 
@@ -48,7 +52,12 @@ type sender struct {
 	ID string `json:"id"`
 }
 
-type PrivacyData struct {
+type response struct {
+	Recipient recipient     `json:"recipient"`
+	Message   serverMessage `json:"text"`
+}
+
+type privacyData struct {
 	Domain   string
 	Business string
 	City     string
@@ -90,6 +99,14 @@ func apiHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			webhookEvent := entry.Messaging[0]
 
 			fmt.Println(webhookEvent)
+
+			if webhookEvent.Message != nil {
+				handleMessage(webhookEvent.Sender.ID, webhookEvent.Message)
+			}
+
+			if webhookEvent.PostBack != nil {
+				handlePostback(webhookEvent.Sender.ID, webhookEvent.PostBack)
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "%s", "EVENT_RECEIVED")
@@ -100,7 +117,7 @@ func apiHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 func privacyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	privacyData := PrivacyData{
+	privacyData := privacyData{
 		os.Getenv("DOMAIN"),
 		os.Getenv("BUSINESS"),
 		os.Getenv("CITY"),
@@ -110,24 +127,56 @@ func privacyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	renderTemplate(w, "template/privacy_policy", privacyData)
 }
 
-func renderTemplate(w http.ResponseWriter, tmpl string, data PrivacyData) {
+func renderTemplate(w http.ResponseWriter, tmpl string, data privacyData) {
 	t, _ := template.ParseFiles(tmpl + ".html")
 	t.Execute(w, data)
 }
 
 // Handles messages events
-func handleMessage(sender_psid string, received_message string) {
+func handleMessage(senderPsid string, receivedMessage *message) {
 
+	var res response
+	if receivedMessage.Text != "" {
+		res = response{
+			Message: serverMessage{
+				Text: receivedMessage.Text,
+			},
+		}
+	}
+
+	callSendAPI(senderPsid, res)
 }
 
 // Handles messaging_postbacks events
-func handlePostback(sender_psid string, received_postback string) {
+func handlePostback(senderPsid string, receivedPostback *message) {
 
 }
 
 // Sends response messages via the Send API
-func callSendAPI(sender_psid string, response string) {
+func callSendAPI(senderPsid string, res response) {
+	body := new(bytes.Buffer)
+	err := json.NewEncoder(body).Encode(res)
 
+	if err != nil {
+		logrus.Errorf("Failed to encode JSON: %v.", err)
+		return
+	}
+
+	url := "https://graph.facebook.com/v2.6/me/messages"
+	req, err := http.NewRequest("POST", url, body)
+	req.Header.Add("Authorization", "Bearer "+os.Getenv("PAGE_ACCESS_TOKEN"))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Body:", string(respBody))
 }
 
 func main() {
