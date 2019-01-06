@@ -22,11 +22,30 @@ type BodyMsg struct {
 }
 
 type messaging struct {
-	Messaging []message `json:"messaging"`
+	ID        string        `json:"id"`
+	Messaging []messagingEl `json:"messaging"`
+	Time      int           `json:"time"`
+}
+
+type messagingEl struct {
+	Message   string    `json:"message"`
+	Recipient recipient `json:"recipient"`
+	Sender    sender    `json:"sender"`
+	Timestamp int       `json:"timestamp"`
 }
 
 type message struct {
-	Message string `json:"message"`
+	Mid  string `json:"mid"`
+	Seq  int    `json:"seq"`
+	Text string `json:"text"`
+}
+
+type recipient struct {
+	ID string `json:"id"`
+}
+
+type sender struct {
+	ID string `json:"id"`
 }
 
 type PrivacyData struct {
@@ -94,6 +113,21 @@ func privacyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 func renderTemplate(w http.ResponseWriter, tmpl string, data PrivacyData) {
 	t, _ := template.ParseFiles(tmpl + ".html")
 	t.Execute(w, data)
+}
+
+// Handles messages events
+func handleMessage(sender_psid string, received_message string) {
+
+}
+
+// Handles messaging_postbacks events
+func handlePostback(sender_psid string, received_postback string) {
+
+}
+
+// Sends response messages via the Send API
+func callSendAPI(sender_psid string, response string) {
+
 }
 
 func main() {
