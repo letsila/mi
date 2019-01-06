@@ -28,10 +28,11 @@ type messaging struct {
 }
 
 type messagingEl struct {
-	Message, PostBack *message  `json:"message"`
-	Recipient         recipient `json:"recipient"`
-	Sender            sender    `json:"sender"`
-	Timestamp         int       `json:"timestamp"`
+	Message   message   `json:"message"`
+	PostBack  message   `json:"postback"`
+	Recipient recipient `json:"recipient"`
+	Sender    sender    `json:"sender"`
+	Timestamp int       `json:"timestamp"`
 }
 
 type message struct {
@@ -54,7 +55,7 @@ type sender struct {
 
 type response struct {
 	Recipient recipient     `json:"recipient"`
-	Message   serverMessage `json:"text"`
+	Message   serverMessage `json:"message"`
 }
 
 type privacyData struct {
@@ -88,6 +89,7 @@ func verifyHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 func apiHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	body := BodyMsg{}
+
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		logrus.Errorf("Failed to decode JSON: %v.", err)
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
@@ -97,16 +99,9 @@ func apiHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if body.Object == "page" {
 		for _, entry := range body.Entry {
 			webhookEvent := entry.Messaging[0]
-
 			fmt.Println(webhookEvent)
 
-			if webhookEvent.Message != nil {
-				handleMessage(webhookEvent.Sender.ID, webhookEvent.Message)
-			}
-
-			if webhookEvent.PostBack != nil {
-				handlePostback(webhookEvent.Sender.ID, webhookEvent.PostBack)
-			}
+			handleMessage(webhookEvent.Sender.ID, webhookEvent.Message)
 		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "%s", "EVENT_RECEIVED")
@@ -133,7 +128,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data privacyData) {
 }
 
 // Handles messages events
-func handleMessage(senderPsid string, receivedMessage *message) {
+func handleMessage(senderPsid string, receivedMessage message) {
 
 	var res response
 	if receivedMessage.Text != "" {
@@ -151,7 +146,7 @@ func handleMessage(senderPsid string, receivedMessage *message) {
 }
 
 // Handles messaging_postbacks events
-func handlePostback(senderPsid string, receivedPostback *message) {
+func handlePostback(senderPsid string, receivedPostback message) {
 
 }
 
