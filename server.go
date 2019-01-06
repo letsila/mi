@@ -28,7 +28,7 @@ type messaging struct {
 }
 
 type messagingEl struct {
-	Message   string    `json:"message"`
+	Message   message   `json:"message"`
 	Recipient recipient `json:"recipient"`
 	Sender    sender    `json:"sender"`
 	Timestamp int       `json:"timestamp"`
