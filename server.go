@@ -138,6 +138,9 @@ func handleMessage(senderPsid string, receivedMessage *message) {
 	var res response
 	if receivedMessage.Text != "" {
 		res = response{
+			Recipient: recipient{
+				ID: senderPsid,
+			},
 			Message: serverMessage{
 				Text: receivedMessage.Text,
 			},
