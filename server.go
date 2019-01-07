@@ -13,6 +13,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
 	"github.com/omidnikta/logrus"
+	"google.golang.org/api/googleapi/transport"
+	youtube "google.golang.org/api/youtube/v3"
 )
 
 // BodyMsg message messenger
@@ -42,7 +44,8 @@ type message struct {
 }
 
 type serverMessage struct {
-	Text string `json:"text"`
+	Text       string      `json:"text,omitempty"`
+	Attachment *attachment `json:"attachment,omitempty"`
 }
 
 type recipient struct {
@@ -63,6 +66,38 @@ type privacyData struct {
 	Business string
 	City     string
 	Country  string
+}
+
+type attachment struct {
+	AttachmentType string  `json:"type"`
+	Payload        payload `json:"payload"`
+}
+
+type payload struct {
+	TemplateType string    `json:"template_type"`
+	Elements     []element `json:"elements"`
+}
+
+type element struct {
+	Title         string        `json:"title"`
+	ImageURL      string        `json:"image_url"`
+	DefaultAction defaultAction `json:"default_action"`
+	Buttons       []button      `json:"buttons"`
+}
+
+type defaultAction struct {
+	DefaultActionType   string `json:"type"`
+	URL                 string `json:"url"`
+	WebViewHeightRatio  string `json:"webview_height_ratio"`
+	MessengerExtensions bool   `json:"messenger_extensions"`
+}
+
+type button struct {
+	ButtonType          string `json:"type"`
+	URL                 string `json:"url"`
+	Title               string `json:"title"`
+	MessengerExtensions bool   `json:"messenger_extensions"`
+	WebViewHeightRatio  string `json:"webview_height_ratio"`
 }
 
 func hello(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -129,20 +164,66 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data privacyData) {
 
 // Handles messages events
 func handleMessage(senderPsid string, receivedMessage message) {
-
 	var res response
-	if receivedMessage.Text != "" {
-		res = response{
-			Recipient: recipient{
-				ID: senderPsid,
-			},
-			Message: serverMessage{
-				Text: receivedMessage.Text,
-			},
-		}
-	}
 
-	callSendAPI(senderPsid, res)
+	if receivedMessage.Text != "" {
+		searchResults := youtubeSearchAPI(receivedMessage.Text)
+
+		if len(searchResults) > 0 {
+
+			var (
+				elements []element
+				buttons  []button
+			)
+
+			for _, item := range searchResults {
+				elements = append(elements, element{
+					Title:    item.Snippet.Title,
+					ImageURL: item.Snippet.Thumbnails.Default.Url,
+					DefaultAction: defaultAction{
+						DefaultActionType:   "web_url",
+						URL:                 "https://www.youtube.com/watch?v=" + item.Id.VideoId,
+						WebViewHeightRatio:  "tall",
+						MessengerExtensions: true,
+					},
+					Buttons: append(buttons, button{
+						ButtonType:          "web_url",
+						URL:                 "https://www.youtube.com/watch?v=" + item.Id.VideoId,
+						Title:               "Download",
+						MessengerExtensions: true,
+						WebViewHeightRatio:  "tall",
+					}),
+				})
+			}
+
+			res = response{
+				Recipient: recipient{
+					ID: senderPsid,
+				},
+				Message: serverMessage{
+					Attachment: &attachment{
+						AttachmentType: "template",
+						Payload: payload{
+							TemplateType: "generic",
+							Elements:     elements,
+						},
+					},
+				},
+			}
+
+		} else {
+			res = response{
+				Recipient: recipient{
+					ID: senderPsid,
+				},
+				Message: serverMessage{
+					Text: "Aucun résultat n'a été trouvé pour " + receivedMessage.Text,
+				},
+			}
+		}
+
+		callSendAPI(senderPsid, res)
+	}
 }
 
 // Handles messaging_postbacks events
@@ -152,6 +233,63 @@ func handlePostback(senderPsid string, receivedPostback message) {
 
 // Sends response messages via the Send API
 func callSendAPI(senderPsid string, res response) {
+	body := new(bytes.Buffer)
+	err := json.NewEncoder(body).Encode(res)
+
+	if err != nil {
+		logrus.Errorf("Failed to encode JSON: %v.", err)
+		return
+	}
+
+	url := "https://graph.facebook.com/v2.6/me/messages"
+	req, err := http.NewRequest("POST", url, body)
+	req.Header.Add("Authorization", "Bearer "+os.Getenv("PAGE_ACCESS_TOKEN"))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Body:", string(respBody))
+}
+
+func youtubeSearchAPI(video string) []*youtube.SearchResult {
+	client := &http.Client{
+		Transport: &transport.APIKey{Key: os.Getenv("YOUTUBE_DATA_API_KEY")},
+	}
+
+	service, err := youtube.New(client)
+	if err != nil {
+		log.Fatalf("Error creating new YouTube client: %v", err)
+	}
+
+	// Make the API call to YouTube.
+	call := service.Search.List("id,snippet").
+		Q(video).
+		MaxResults(5)
+	response, err := call.Do()
+	if err != nil {
+		log.Fatalf("Error making search API call: %v", err)
+	}
+
+	return response.Items
+}
+
+func printIDs(sectionName string, matches map[string]string) {
+	fmt.Printf("%v:\n", sectionName)
+	for id, title := range matches {
+		fmt.Printf("[%v] %v\n", id, title)
+	}
+	fmt.Printf("\n\n")
+}
+
+// Sends response messages via the Send API
+func facebookSendAPI(senderPsid string, res response) {
 	body := new(bytes.Buffer)
 	err := json.NewEncoder(body).Encode(res)
 
