@@ -43,9 +43,10 @@ type messagingEl struct {
 }
 
 type message struct {
-	Mid  string `json:"mid"`
-	Seq  int    `json:"seq"`
-	Text string `json:"text"`
+	Mid     string `json:"mid,omitempty"`
+	Seq     int    `json:"seq,omitempty"`
+	Text    string `json:"text,omitempty"`
+	Payload string `json:"payload,omitempty"`
 }
 
 type serverMessage struct {
@@ -228,7 +229,7 @@ func handleMessage(senderPsid string, receivedMessage *message) {
 
 // Handles messaging_postbacks events
 func handlePostback(senderPsid string, receivedPostback *message) {
-	payload := strings.Split(receivedPostback.Text, ":")
+	payload := strings.Split(receivedPostback.Payload, ":")
 
 	switch payload[0] {
 	case "GET_MP3":
