@@ -41,16 +41,16 @@ The following steps has been tested on Debian 9 so you will have to adapt the co
         $ sudo apt-get install supervisor
         ```
 
-    * Create the following configuration file `/etc/supservisor/conf.d/mi-ai.conf` with the following content
+    * Create the following configuration file `/etc/supservisor/conf.d/mi.conf` with the following content
     
         ```
-        [program:mi_ai]
-        directory=/home/<user-name>/go/src/mi-ai
-        command=/home/<user-name>/go/src/mi-ai/server
+        [program:mi]
+        directory=/home/<user-name>/go/src/mi
+        command=/home/<user-name>/go/src/mi/server
         autostart=true
         autorestart=true
-        stderr_logfile=/var/log/mi-ai.err.log
-        stdout_logfile=/var/log/mi-ai.out.log
+        stderr_logfile=/var/log/mi.err.log
+        stdout_logfile=/var/log/mi.out.log
         ```
     
     * Run the following commands
