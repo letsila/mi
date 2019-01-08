@@ -14,9 +14,9 @@ Searching videos on [youtube](https://www.youtube.com) is the very first feature
 </p>
 
 ## Dependencies
-The downloading feature relies on [youtube-dl](https://github.com/rg3/youtube-dl/). You will need to install it on your server. Also, you need to install [ffmpeg](https://www.ostechnix.com/install-ffmpeg-linux/) for the mp3 conversion.
+The downloading feature relies on [youtube-dl](https://github.com/rg3/youtube-dl/). You will need to install it on your server. In addition to that you will need to install [ffmpeg](https://www.ostechnix.com/install-ffmpeg-linux/) for the mp3 conversion.
 ````
-$ sudo apt-get install
+$ sudo apt-get install ffmpeg
 ````
 
 ## Deployment
