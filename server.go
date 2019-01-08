@@ -92,18 +92,18 @@ type element struct {
 
 type defaultAction struct {
 	DefaultActionType   string `json:"type"`
-	URL                 string `json:"url"`
-	WebViewHeightRatio  string `json:"webview_height_ratio"`
-	MessengerExtensions bool   `json:"messenger_extensions"`
+	URL                 string `json:"url,omitempty"`
+	WebViewHeightRatio  string `json:"webview_height_ratio,omitempty"`
+	MessengerExtensions bool   `json:"messenger_extensions,omitempty"`
 }
 
 type button struct {
 	ButtonType          string `json:"type"`
-	URL                 string `json:"url"`
+	URL                 string `json:"url,omitempty"`
 	Title               string `json:"title"`
-	MessengerExtensions bool   `json:"messenger_extensions"`
-	WebViewHeightRatio  string `json:"webview_height_ratio"`
-	Payload             string `json:"payload"`
+	MessengerExtensions bool   `json:"messenger_extensions,omitempty"`
+	WebViewHeightRatio  string `json:"webview_height_ratio,omitempty"`
+	Payload             string `json:"payload,omitempty"`
 }
 
 func hello(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -309,23 +309,20 @@ func downloadMP3(videoID, videoName string) (string, error) {
 		log.Fatalf("Error getting working dir: %v", err)
 	}
 
-	fileName := "'" + dir + "/tmp/%(title)s.%(ext)s" + "'"
-	videoURL := "https://www.youtube.com/watch?v=" + videoID
-	command := "youtube-dl --extract-audio --audio-format mp3 -o " + fileName + " " + videoURL
+	mp3Path := dir + "/tmp/" + videoName + ".mp3"
 
 	// Do not download and return mp3Path if the file is already present
-	mp3Path := dir + "/tmp/" + videoName + ".mp3"
 	if _, err := os.Stat(mp3Path); !os.IsNotExist(err) {
 		return mp3Path, nil
 	}
 
-	fmt.Println("Downloading mp3 ...")
-	fmt.Println(command)
+	videoURL := "https://www.youtube.com/watch?v=" + videoID
+	command := "youtube-dl --extract-audio --audio-format mp3 -o " + "'" + mp3Path + "'" + " " + videoURL
 
 	cmd := exec.Command("bash", "-c", command)
 	err = cmd.Run()
 
-	return fileName, err
+	return mp3Path, err
 }
 
 // Sends response messages via the Send API
