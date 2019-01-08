@@ -1,7 +1,26 @@
-## Mi AI
-Mi AI is an utility messenger bot which will help you grab some stuff from the web.
+<p align="center">
+  <img src="logo.png" width="20%" border="0" alt="avo" />
+  <br />
+</p>
 
-## Deployment on Debian based distros
+`Mi AI` is an utility messenger bot which will help you grab stuff from the web.
+
+## Features
+Searching videos on [youtube](https://www.youtube.com) is the very first feature of this bot. Sending keywords to the bot will fetch the related search result from [youtube](https://www.youtube.com). Then, you can download the mp3 audio format of the videos that has been found.
+
+<p>
+  <img src="screen-shot.png" width="20%" border="0" alt="avo" />
+  <br />
+</p>
+
+## Dependencies
+The downloading feature relies on [youtube-dl](https://github.com/rg3/youtube-dl/). You will need to install it on your server. Also, you need to install [ffmpeg](https://www.ostechnix.com/install-ffmpeg-linux/) for the mp3 conversion.
+````
+$ sudo apt-get install
+````
+
+## Deployment
+The following steps has been tested on Debian 9 so you will have to adapt the commands and configs according to your server distribution.
 1. Clone the repository on your server
 2. You need SSL certificate. You can get one for free using [Let's encrypt](https://letsencrypt.org)
 3. Once you got your certificate, create a `.env` file inside the project directory. This file should contain the following informations
