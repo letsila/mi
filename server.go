@@ -199,11 +199,9 @@ func handleMessage(senderPsid string, receivedMessage *message) {
 						MessengerExtensions: true,
 					},
 					Buttons: append(buttons, button{
-						ButtonType:          "postback",
-						Title:               "Get MP3",
-						Payload:             "GET_MP3:" + item.Id.VideoId + ":" + item.Snippet.Title,
-						MessengerExtensions: true,
-						WebViewHeightRatio:  "tall",
+						ButtonType: "postback",
+						Title:      "Get MP3",
+						Payload:    "GET_MP3:" + item.Id.VideoId + ":" + item.Snippet.Title,
 					}),
 				})
 			}
