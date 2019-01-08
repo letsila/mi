@@ -3,7 +3,7 @@
   <br />
 </p>
 
-`Mi` is high performance messenger bot which will help you grab stuff from the web.
+`Mi` is a high performance messenger bot which will help you grab stuff from the web.
 
 ## Features
 Searching videos on [youtube](https://www.youtube.com) is the very first feature of this bot. Sending keywords to the bot will fetch the related search result from [youtube](https://www.youtube.com). Then, you can download the mp3 audio format of the videos that has been found. More is yet to come. Stay tuned ...
