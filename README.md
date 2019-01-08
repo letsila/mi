@@ -3,13 +3,13 @@
   <br />
 </p>
 
-`Mi AI` is an utility messenger bot which will help you grab stuff from the web.
+`Mi` is an utility messenger bot which will help you grab stuff from the web.
 
 ## Features
 Searching videos on [youtube](https://www.youtube.com) is the very first feature of this bot. Sending keywords to the bot will fetch the related search result from [youtube](https://www.youtube.com). Then, you can download the mp3 audio format of the videos that has been found.
 
 <p>
-  <img src="screen-shot.png" width="20%" border="0" alt="avo" />
+  <img src="screen-shot.png" width="35%" border="0" alt="avo" />
   <br />
 </p>
 
