@@ -5,10 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
@@ -30,8 +35,8 @@ type messaging struct {
 }
 
 type messagingEl struct {
-	Message   message   `json:"message"`
-	PostBack  message   `json:"postback"`
+	Message   *message  `json:"message,omitempty"`
+	PostBack  *message  `json:"postback,omitempty"`
 	Recipient recipient `json:"recipient"`
 	Sender    sender    `json:"sender"`
 	Timestamp int       `json:"timestamp"`
@@ -98,6 +103,7 @@ type button struct {
 	Title               string `json:"title"`
 	MessengerExtensions bool   `json:"messenger_extensions"`
 	WebViewHeightRatio  string `json:"webview_height_ratio"`
+	Payload             string `json:"payload"`
 }
 
 func hello(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -134,12 +140,15 @@ func apiHook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if body.Object == "page" {
 		for _, entry := range body.Entry {
 			webhookEvent := entry.Messaging[0]
-			fmt.Println(webhookEvent)
 
-			handleMessage(webhookEvent.Sender.ID, webhookEvent.Message)
+			if webhookEvent.Message != nil {
+				handleMessage(webhookEvent.Sender.ID, webhookEvent.Message)
+			}
+
+			if webhookEvent.PostBack != nil {
+				handlePostback(webhookEvent.Sender.ID, webhookEvent.PostBack)
+			}
 		}
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "%s", "EVENT_RECEIVED")
 	} else {
 		http.Error(w, "Message error", http.StatusBadRequest)
 	}
@@ -163,14 +172,17 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data privacyData) {
 }
 
 // Handles messages events
-func handleMessage(senderPsid string, receivedMessage message) {
-	var res response
+func handleMessage(senderPsid string, receivedMessage *message) {
+	res := response{
+		Recipient: recipient{
+			ID: senderPsid,
+		},
+	}
 
 	if receivedMessage.Text != "" {
 		searchResults := youtubeSearchAPI(receivedMessage.Text)
 
 		if len(searchResults) > 0 {
-
 			var (
 				elements []element
 				buttons  []button
@@ -179,7 +191,7 @@ func handleMessage(senderPsid string, receivedMessage message) {
 			for _, item := range searchResults {
 				elements = append(elements, element{
 					Title:    item.Snippet.Title,
-					ImageURL: item.Snippet.Thumbnails.Default.Url,
+					ImageURL: item.Snippet.Thumbnails.High.Url,
 					DefaultAction: defaultAction{
 						DefaultActionType:   "web_url",
 						URL:                 "https://www.youtube.com/watch?v=" + item.Id.VideoId,
@@ -187,38 +199,28 @@ func handleMessage(senderPsid string, receivedMessage message) {
 						MessengerExtensions: true,
 					},
 					Buttons: append(buttons, button{
-						ButtonType:          "web_url",
-						URL:                 "https://www.youtube.com/watch?v=" + item.Id.VideoId,
-						Title:               "Download",
+						ButtonType:          "postback",
+						Title:               "Get MP3",
+						Payload:             "GET_MP3:" + item.Id.VideoId + ":" + item.Snippet.Title,
 						MessengerExtensions: true,
 						WebViewHeightRatio:  "tall",
 					}),
 				})
 			}
 
-			res = response{
-				Recipient: recipient{
-					ID: senderPsid,
-				},
-				Message: serverMessage{
-					Attachment: &attachment{
-						AttachmentType: "template",
-						Payload: payload{
-							TemplateType: "generic",
-							Elements:     elements,
-						},
+			res.Message = serverMessage{
+				Attachment: &attachment{
+					AttachmentType: "template",
+					Payload: payload{
+						TemplateType: "generic",
+						Elements:     elements,
 					},
 				},
 			}
 
 		} else {
-			res = response{
-				Recipient: recipient{
-					ID: senderPsid,
-				},
-				Message: serverMessage{
-					Text: "Aucun résultat n'a été trouvé pour " + receivedMessage.Text,
-				},
+			res.Message = serverMessage{
+				Text: "Aucun résultat n'a été trouvé pour " + receivedMessage.Text,
 			}
 		}
 
@@ -227,8 +229,103 @@ func handleMessage(senderPsid string, receivedMessage message) {
 }
 
 // Handles messaging_postbacks events
-func handlePostback(senderPsid string, receivedPostback message) {
+func handlePostback(senderPsid string, receivedPostback *message) {
+	payload := strings.Split(receivedPostback.Text, ":")
 
+	switch payload[0] {
+	case "GET_MP3":
+		fileName, err := downloadMP3(payload[1], payload[2])
+
+		if err != nil {
+			log.Fatalf("Error downloading MP3: %v", err)
+			return
+		}
+
+		uploadMP3(senderPsid, fileName)
+	}
+}
+
+// Creates a new file upload http request with optional extra params
+// https://matt.aimonetti.net/posts/2013/07/01/golang-multipart-file-upload-example/
+func newFileUploadRequest(uri string, params map[string]string, paramName, path string) (*http.Request, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	part, err := writer.CreateFormFile(paramName, filepath.Base(path))
+	if err != nil {
+		return nil, err
+	}
+	_, err = io.Copy(part, file)
+
+	for key, val := range params {
+		_ = writer.WriteField(key, val)
+	}
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", uri, body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req, err
+}
+
+func uploadMP3(senderPsid, fileName string) {
+	extraParams := map[string]string{
+		"recipient": "{'id': " + senderPsid + "}",
+		"message":   "{'attachment':{'type':'file', 'payload':{'is_reusable':true}}}",
+	}
+
+	url := "https://graph.facebook.com/v2.6/me/messages?access_token=" + os.Getenv("PAGE_ACCESS_TOKEN")
+
+	request, err := newFileUploadRequest(url, extraParams, "filedata", fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := &http.Client{}
+	res, err := client.Do(request)
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		body := &bytes.Buffer{}
+		_, err := body.ReadFrom(res.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		res.Body.Close()
+	}
+}
+
+func downloadMP3(videoID, videoName string) (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Error getting working dir: %v", err)
+	}
+
+	fileName := "'" + dir + "/tmp/%(title)s.%(ext)s" + "'"
+	videoURL := "https://www.youtube.com/watch?v=" + videoID
+	command := "youtube-dl --extract-audio --audio-format mp3 -o " + fileName + " " + videoURL
+
+	// Do not download and return mp3Path if the file is already present
+	mp3Path := dir + "/tmp/" + videoName + ".mp3"
+	if _, err := os.Stat(mp3Path); !os.IsNotExist(err) {
+		return mp3Path, nil
+	}
+
+	fmt.Println("Downloading mp3 ...")
+	fmt.Println(command)
+
+	cmd := exec.Command("bash", "-c", command)
+	err = cmd.Run()
+
+	return fileName, err
 }
 
 // Sends response messages via the Send API
@@ -278,14 +375,6 @@ func youtubeSearchAPI(video string) []*youtube.SearchResult {
 	}
 
 	return response.Items
-}
-
-func printIDs(sectionName string, matches map[string]string) {
-	fmt.Printf("%v:\n", sectionName)
-	for id, title := range matches {
-		fmt.Printf("[%v] %v\n", id, title)
-	}
-	fmt.Printf("\n\n")
 }
 
 // Sends response messages via the Send API
