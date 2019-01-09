@@ -308,15 +308,15 @@ func downloadMP3(videoID, videoName string) (string, error) {
 		log.Fatalf("Error getting working dir: %v", err)
 	}
 
-	mp3Path := dir + "/tmp/" + videoName + ".mp3"
-
 	// Do not download and return mp3Path if the file is already present
+	mp3Path := dir + "/tmp/" + videoName + ".mp3"
 	if _, err := os.Stat(mp3Path); !os.IsNotExist(err) {
 		return mp3Path, nil
 	}
 
+	fileName := "'" + dir + "/tmp/%(title)s.%(ext)s" + "'"
 	videoURL := "https://www.youtube.com/watch?v=" + videoID
-	command := "youtube-dl --extract-audio --audio-format mp3 -o " + "'" + mp3Path + "'" + " " + videoURL
+	command := "youtube-dl --extract-audio --audio-format mp3 -o " + fileName + " " + videoURL
 
 	cmd := exec.Command("bash", "-c", command)
 	err = cmd.Run()
